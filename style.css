@@ -26,6 +26,9 @@ body {
   font-size: 70px;
   text-align: end;
   padding-top: 20px;
+  width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .buttons {
