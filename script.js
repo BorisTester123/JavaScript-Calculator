@@ -48,6 +48,42 @@ buttons.map((button) => {
         break;
       case "=":
         try {
+          if (str.endsWith("%")) {
+            str = str.slice(0, -1);
+            let matchPercent = str.match(opRegex);
+            if (matchPercent) {
+              let opPosPercent = matchPercent.index;
+              let op = matchPercent[0];
+              let leftStr = str.substring(0, opPosPercent);
+              let rightStr = str.substring(opPosPercent + 1);
+              if (rightStr === "") {
+                throw new Error("Invalid percent");
+              }
+              let evalLeft = leftStr
+                .replace(/([+\-*\/]|^)(\.)/g, "$10.")
+                .replace(/\.$/, "");
+              let evalRight = rightStr
+                .replace(/([+\-*\/]|^)(\.)/g, "$10.")
+                .replace(/\.$/, "");
+              let left = eval(evalLeft);
+              let right = eval(evalRight);
+              if (isNaN(left) || isNaN(right)) {
+                throw new Error("Invalid percent");
+              }
+              let percentValue =
+                op === "+" || op === "-" ? (left * right) / 100 : right / 100;
+              str = leftStr + op + percentValue;
+            } else {
+              let evalStrPercent = str
+                .replace(/([+\-*\/]|^)(\.)/g, "$10.")
+                .replace(/\.$/, "");
+              let value = eval(evalStrPercent);
+              if (isNaN(value)) {
+                throw new Error("Invalid percent");
+              }
+              str = (value / 100).toString();
+            }
+          }
           let evalStr = str.replace(/([+\-*\/]|^)(\.)/g, "$10.");
           evalStr = evalStr.replace(/\.$/, "");
           let hasDecimal = evalStr.includes(".");
@@ -116,73 +152,19 @@ buttons.map((button) => {
         isResult = false;
         break;
       case "%":
-        try {
-          let matchPercent = str.match(opRegex);
-          if (matchPercent) {
-            let opPosPercent = matchPercent.index;
-            let op = matchPercent[0];
-            let leftStr = str.substring(0, opPosPercent);
-            let rightStr = str.substring(opPosPercent + 1);
-            if (rightStr === "") {
-              return;
-            }
-            let evalLeft = leftStr
-              .replace(/([+\-*\/]|^)(\.)/g, "$10.")
-              .replace(/\.$/, "");
-            let evalRight = rightStr
-              .replace(/([+\-*\/]|^)(\.)/g, "$10.")
-              .replace(/\.$/, "");
-            let left = eval(evalLeft);
-            let right = eval(evalRight);
-            if (isNaN(left) || isNaN(right)) {
-              throw new Error("Invalid percent");
-            }
-            let percentValue =
-              op === "+" || op === "-" ? (left * right) / 100 : right / 100;
-            let newExpr = left + op + percentValue;
-            let finalResult = eval(newExpr);
-            let finalResultStr = finalResult.toString();
-            if (
-              finalResultStr.length > MAX_DIGITS &&
-              !finalResultStr.includes("e") &&
-              !finalResultStr.includes("E")
-            ) {
-              finalResult = finalResult.toExponential(10);
-            } else {
-              finalResult = finalResultStr;
-            }
-            if (
-              finalResult === "Infinity" ||
-              finalResult === "-Infinity" ||
-              finalResult === "NaN" ||
-              isNaN(parseFloat(finalResult))
-            ) {
-              throw new Error("Invalid operation");
-            }
-            display.innerText = finalResult;
-          } else {
-            let evalStrPercent = str
-              .replace(/([+\-*\/]|^)(\.)/g, "$10.")
-              .replace(/\.$/, "");
-            let value = eval(evalStrPercent);
-            if (isNaN(value)) {
-              throw new Error("Invalid percent");
-            }
-            let percentResult = value / 100;
-            let percentResultStr = percentResult.toString();
-            if (
-              percentResultStr.length > MAX_DIGITS &&
-              !percentResultStr.includes("e") &&
-              !percentResultStr.includes("E")
-            ) {
-              percentResult = percentResult.toExponential(10);
-            }
-            display.innerText = percentResult;
-          }
-        } catch (err) {
-          display.innerText = "Ошибка!";
+        let lastCharPercent = str.slice(-1);
+        if (
+          !["0", "1", "2", "3", "4", "5", "6", "7", "8", "9"].includes(
+            lastCharPercent
+          )
+        ) {
+          return;
         }
-        isResult = true;
+        if (str.endsWith("%")) {
+          return;
+        }
+        display.innerText += "%";
+        isResult = false;
         break;
       default:
         let isOperator = ["+", "-", "*", "/"].includes(char);
