@@ -24,6 +24,17 @@ function toScientificInteger(numStr, precision = 10) {
   return sign + parseFloat(mantissa).toFixed(precision) + "e+" + exp;
 }
 
+function formatNumber(num) {
+  if (typeof num !== "number" || isNaN(num)) return "NaN";
+  let str = num.toPrecision(MAX_DIGITS);
+  str = str.replace(/\.0+$/, "").replace(/(\.[0-9]*[1-9])0+$/, "$1");
+  if (str.endsWith(".")) str = str.slice(0, -1);
+  if (str.endsWith("e+0") || str.endsWith("e-0")) {
+    str = str.slice(0, -4);
+  }
+  return str;
+}
+
 function getLastOperandInfo(str) {
   let lastMatch = str.match(/[-]?\d*\.?\d*$/);
   if (!lastMatch) {
@@ -70,8 +81,7 @@ buttons.map((button) => {
               if (isNaN(left) || isNaN(right)) {
                 throw new Error("Invalid percent");
               }
-              let percentValue =
-                op === "+" || op === "-" ? (left * right) / 100 : right / 100;
+              let percentValue = right / 100;
               str = leftStr + op + percentValue;
             } else {
               let evalStrPercent = str
@@ -84,6 +94,8 @@ buttons.map((button) => {
               str = (value / 100).toString();
             }
           }
+          str = str.replace(/([\d.]+)%([+\-*\/])/g, "($1/100)$2");
+          str = str.replace(/%(\d)/g, "/100*$1");
           let evalStr = str.replace(/([+\-*\/]|^)(\.)/g, "$10.");
           evalStr = evalStr.replace(/\.$/, "");
           let hasDecimal = evalStr.includes(".");
@@ -99,16 +111,8 @@ buttons.map((button) => {
             }
           } else {
             result = eval(evalStr);
-            let resultStr = result.toString();
-            if (
-              resultStr.length > MAX_DIGITS &&
-              !resultStr.includes("e") &&
-              !resultStr.includes("E")
-            ) {
-              result = result.toExponential(10);
-            } else {
-              result = resultStr;
-            }
+            let resultStr = formatNumber(result);
+            result = resultStr; // Удалена проверка на length > MAX_DIGITS для избежания ненужной экспоненты
           }
           if (
             result === "Infinity" ||
@@ -195,8 +199,17 @@ buttons.map((button) => {
             isResult = false;
           }
           let lastChar = str.slice(-1);
-          if (["+", "-", "*", "/"].includes(lastChar)) {
+          if (["+", "*", "/"].includes(lastChar)) {
             display.innerText = str.slice(0, -1) + char;
+          } else if (lastChar === "-") {
+            let secondLast = str.slice(-2, -1);
+            if (str.length === 1 || ["+", "-", "*", "/"].includes(secondLast)) {
+              display.innerText = str.slice(0, -2) + char;
+            } else {
+              display.innerText = str.slice(0, -1) + char;
+            }
+          } else if (lastChar === ".") {
+            display.innerText = str + "0" + char;
           } else if (str !== "0") {
             display.innerText += char;
           }
