@@ -1,9 +1,10 @@
 let display = document.querySelector(".display");
 let buttons = Array.from(document.querySelectorAll(".button"));
 let isResult = false;
+const MAX_DIGITS = 12;
 
 function adjustFontSize() {
-  display.style.fontSize = "70px"; // Сброс
+  display.style.fontSize = "70px";
   let fontSize = 70;
   while (display.scrollWidth > display.clientWidth && fontSize > 10) {
     fontSize -= 1;
@@ -11,11 +12,32 @@ function adjustFontSize() {
   }
 }
 
+function toScientificInteger(numStr, precision = 10) {
+  if (numStr.length <= MAX_DIGITS) return numStr;
+  let sign = numStr.startsWith("-") ? "-" : "";
+  numStr = numStr.replace(/^-/, "");
+  if (numStr === "0") return "0";
+  let exp = numStr.length - 1;
+  let mantissa = numStr[0] + "." + numStr.slice(1, precision + 1);
+  return sign + parseFloat(mantissa).toFixed(precision) + "e+" + exp;
+}
+
+function getLastOperandInfo(str) {
+  let lastMatch = str.match(/[-]?\d*\.?\d*$/);
+  if (!lastMatch) {
+    return null;
+  }
+  let operand = lastMatch[0];
+  let startPos = lastMatch.index;
+  let before = str.substring(0, startPos);
+  return { before, operand };
+}
+
 buttons.map((button) => {
   button.addEventListener("click", (e) => {
     let char = e.target.innerText;
     let str = display.innerText;
-    let opRegex = /[\+\-\*\/](?=[^\+\-\*\/]*$)/; // Объявляем здесь, чтобы была доступна везде
+    let opRegex = /[\+\-\*\/](?=[^\+\-\*\/]*$)/;
 
     switch (char) {
       case "AC":
@@ -34,9 +56,21 @@ buttons.map((button) => {
             let bigExpr = spacedStr.replace(/(\b\d+\b)/g, "$1n");
             result = eval(bigExpr);
             result = result.toString();
+            if (result.length > MAX_DIGITS) {
+              result = toScientificInteger(result);
+            }
           } else {
             result = eval(evalStr);
-            result = result.toString();
+            let resultStr = result.toString();
+            if (
+              resultStr.length > MAX_DIGITS &&
+              !resultStr.includes("e") &&
+              !resultStr.includes("E")
+            ) {
+              result = result.toExponential(10);
+            } else {
+              result = resultStr;
+            }
           }
           if (
             result === "Infinity" ||
@@ -53,22 +87,29 @@ buttons.map((button) => {
         isResult = true;
         break;
       case "+/-":
-        if (str === "0" || str === "Error!") {
+        if (str === "Error!") {
           display.innerText = "0";
           break;
         }
-        let match = str.match(opRegex);
-        let opPos = match ? match.index : 0;
-        let before = str.substring(0, opPos + 1);
-        let lastOperand = str.substring(opPos + 1);
-        if (lastOperand === "" && !before.endsWith("-")) {
-          display.innerText = before + "-";
-        } else if (lastOperand.startsWith("-")) {
-          lastOperand = lastOperand.substring(1);
-          display.innerText = before + lastOperand;
+        let info = getLastOperandInfo(str);
+        if (!info) {
+          break;
+        }
+        let { before, operand } = info;
+        let newOperand;
+        if (operand === "") {
+          if (before.endsWith("-")) {
+            display.innerText = before.slice(0, -1);
+          } else {
+            display.innerText = before + "-";
+          }
         } else {
-          lastOperand = "-" + lastOperand;
-          display.innerText = before + lastOperand;
+          if (operand.startsWith("-")) {
+            newOperand = operand.substring(1);
+          } else {
+            newOperand = "-" + operand;
+          }
+          display.innerText = before + newOperand;
         }
         isResult = false;
         break;
@@ -97,7 +138,17 @@ buttons.map((button) => {
             let percentValue =
               op === "+" || op === "-" ? (left * right) / 100 : right / 100;
             let newExpr = left + op + percentValue;
-            let finalResult = eval(newExpr).toString();
+            let finalResult = eval(newExpr);
+            let finalResultStr = finalResult.toString();
+            if (
+              finalResultStr.length > MAX_DIGITS &&
+              !finalResultStr.includes("e") &&
+              !finalResultStr.includes("E")
+            ) {
+              finalResult = finalResult.toExponential(10);
+            } else {
+              finalResult = finalResultStr;
+            }
             if (
               finalResult === "Infinity" ||
               finalResult === "-Infinity" ||
@@ -115,7 +166,16 @@ buttons.map((button) => {
             if (isNaN(value)) {
               throw new Error("Invalid percent");
             }
-            display.innerText = (value / 100).toString();
+            let percentResult = value / 100;
+            let percentResultStr = percentResult.toString();
+            if (
+              percentResultStr.length > MAX_DIGITS &&
+              !percentResultStr.includes("e") &&
+              !percentResultStr.includes("E")
+            ) {
+              percentResult = percentResult.toExponential(10);
+            }
+            display.innerText = percentResult;
           }
         } catch (err) {
           display.innerText = "Error!";
@@ -131,9 +191,11 @@ buttons.map((button) => {
           return;
         }
         if (char === ".") {
-          let matchDot = str.match(opRegex);
-          let opPosDot = matchDot ? matchDot.index : 0;
-          let lastOperandDot = str.substring(opPosDot + 1);
+          let lastMatch = str.match(/[-]?\d*\.?\d*$/);
+          if (!lastMatch) {
+            return;
+          }
+          let lastOperandDot = lastMatch[0];
           if (lastOperandDot.includes(".")) return;
           display.innerText += ".";
           isResult = false;
@@ -155,8 +217,19 @@ buttons.map((button) => {
             display.innerText = char;
             isResult = false;
           } else {
-            if (str.length >= 100) return;
-            display.innerText += char;
+            let info = getLastOperandInfo(str);
+            if (!info) {
+              return;
+            }
+            let { before, operand } = info;
+            let digitCount = operand.replace(/[^0-9]/g, "").length;
+            if (digitCount >= MAX_DIGITS) return;
+            if (operand === "0" || operand === "-0") {
+              let sign = operand.startsWith("-") ? "-" : "";
+              display.innerText = before + sign + char;
+            } else {
+              display.innerText += char;
+            }
           }
         }
     }
