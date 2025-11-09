@@ -3,6 +3,8 @@ let buttons = Array.from(document.querySelectorAll(".button"));
 let isResult = false;
 const MAX_DIGITS = 12;
 
+display.innerText = "0";
+
 function adjustFontSize() {
   display.style.fontSize = "70px";
   let fontSize = 70;
@@ -197,7 +199,11 @@ buttons.map((button) => {
           }
           let lastOperandDot = lastMatch[0];
           if (lastOperandDot.includes(".")) return;
-          display.innerText += ".";
+          let insert = ".";
+          if (lastOperandDot === "" || lastOperandDot === "-") {
+            insert = "0.";
+          }
+          display.innerText += insert;
           isResult = false;
           adjustFontSize();
           return;
