@@ -84,12 +84,12 @@ buttons.map((button) => {
           }
           display.innerText = result;
         } catch (err) {
-          display.innerText = "Error!";
+          display.innerText = "Ошибка!";
         }
         isResult = true;
         break;
       case "+/-":
-        if (str === "Error!") {
+        if (str === "Ошибка!") {
           display.innerText = "0";
           break;
         }
@@ -180,13 +180,13 @@ buttons.map((button) => {
             display.innerText = percentResult;
           }
         } catch (err) {
-          display.innerText = "Error!";
+          display.innerText = "Ошибка!";
         }
         isResult = true;
         break;
       default:
         let isOperator = ["+", "-", "*", "/"].includes(char);
-        if (str === "Error!" && !isOperator) {
+        if (str === "Ошибка!" && !isOperator) {
           display.innerText = char;
           isResult = false;
           adjustFontSize();
